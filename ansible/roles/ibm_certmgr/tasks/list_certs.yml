@@ -1,0 +1,19 @@
+---
+
+- name: Get IAM token
+  include_role:
+    name: iam
+    tasks_from: get_token
+
+- name: List certificates
+  uri:
+    url: "{{ certmgr_api_endpoint }}/api/v3/{{ certmgr_crn | urlencode | replace('/', '%2f') }}/certificates" # need replace("/", "%2f") to urlencode the forward slash '/' as urlencode doesn't do that
+    method: GET
+    return_content: yes
+    headers:
+      Authorization: "{{ iam_token }}"
+  register: certmgr_certificate_list
+
+- name: Certificate list result
+  debug:
+    msg: "{{ certmgr_certificate_list.json }}" # not a file

@@ -1,0 +1,13 @@
+---
+
+certmgr_api_endpoint: "https://us-south.certificate-manager.cloud.ibm.com"
+certmgr_certificate_name: "regtech.cloud.ibm.com"
+certmgr_root_certificate_name: "root.pem"
+
+# *.regtech.cloud.ibm.com certificate crn id
+certmgr_certificate_crn: "crn:v1:bluemix:public:cloudcerts:us-south:a/055a5e2f37fb7f7e380dd348269f1282:88f818af-db46-4fc3-9cac-6679d2ecaeea:certificate:ffae9c466c0974b03bcc3badeb31add9"
+
+certmgr_crn: "crn:v1:bluemix:public:cloudcerts:us-south:a/055a5e2f37fb7f7e380dd348269f1282:88f818af-db46-4fc3-9cac-6679d2ecaeea::"
+certmgr_cis_crn: "crn:v1:bluemix:public:internet-svcs:global:a/055a5e2f37fb7f7e380dd348269f1282:7d8cbee1-283f-4e7c-b5e8-05873f2c2932::"
+# root certificate crn id	
+certmgr_root_certificate_crn: "crn:v1:bluemix:public:cloudcerts:us-south:a/055a5e2f37fb7f7e380dd348269f1282:88f818af-db46-4fc3-9cac-6679d2ecaeea:certificate:1eab2e4073e8c1bb6a7e1e1f635e7207"

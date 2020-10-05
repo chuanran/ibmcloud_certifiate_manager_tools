@@ -1,0 +1,50 @@
+---
+
+- name: Set facts for download certs role task (these will be available to other roles)
+  tags: [ always ]
+  set_fact:
+    certmgr_certificate_name: "{{ certmgr_certificate_name }}"
+    certmgr_root_certificate_name: "{{ certmgr_root_certificate_name }}"
+
+- name: Get IAM token
+  tags: [ always ]
+  include_role:
+    name: iam
+    tasks_from: get_token
+  vars:
+    iam_api_key: "{{ iam_api_key }}"
+
+- name: Download openshift master certificates for "{{ certmgr_certificate_name }}"
+  tags: [ always ]
+  uri:
+    url: "{{ certmgr_api_endpoint }}/api/v2/certificate/{{ certmgr_certificate_crn | urlencode | replace('/', '%2f') }}" # need replace("/", "%2f") to urlencode the forward slash '/' as urlencode doesn't do that
+    method: GET
+    return_content: yes
+    headers:
+      Authorization: "{{ iam_token }}"
+  register: certmgr_certificates
+
+- name: Download root certificate for "{{ certmgr_certificate_name }}"
+  uri:
+    url: "{{ certmgr_api_endpoint }}/api/v2/certificate/{{ certmgr_root_certificate_crn | urlencode | replace('/', '%2f') }}" # need replace("/", "%2f") to urlencode the forward slash '/' as urlencode doesn't do that
+    method: GET
+    return_content: yes
+    headers:
+      Authorization: "{{ iam_token }}"
+  register: certmgr_root_certificate
+
+- name: Certificates result
+  tags: [ always ]
+  debug:
+    msg: "{{ certmgr_certificates.json }}" # not a file
+
+- name: root certificate result
+  debug:
+    msg: "{{ certmgr_root_certificate.json }}" # not a file
+
+
+- name: "Add the new result as a dummy host to make it accessible to all other hosts."
+  add_host:
+    name: ibm_certmgr_download_certs
+    cert_results: "{{ certmgr_certificates.json }}"
+    root_cert_results: "{{ certmgr_root_certificate.json }}"

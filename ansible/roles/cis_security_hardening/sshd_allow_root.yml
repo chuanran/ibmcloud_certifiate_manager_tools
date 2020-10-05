@@ -1,0 +1,50 @@
+---
+
+- name: Add root Group to AllowGroups
+  replace:
+    dest: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    replace: "{{ item.replace }}"
+    backup: yes
+  with_items:
+    - { regexp: '^(AllowGroups(?!.*\broot\b).*)$', replace: '\1 root' }
+    - { regexp: '^PermitRootLogin.*', replace: 'PermitRootLogin yes' }
+  when: enable_root
+
+
+- name: Remove root from AllowGroups
+  lineinfile: 
+    dest: /etc/ssh/sshd_config
+    state: present
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    backrefs: yes
+    backup: yes
+  with_items:
+    - { regexp: '^(AllowGroups.*)root', line: '\1' }
+    - { regexp: '^PermitRootLogin.*', line: 'PermitRootLogin no' }
+  when: not enable_root
+
+- name: Restart service sshd
+  service:
+    name: sshd
+    state: restarted
+
+
+############### Usage #########################
+# - name: SSHD Config - AllowGroups (root)
+#   hosts: openshift_ansible_control_node
+#   tasks:
+#     - name: SSHD root AllowGroups
+#       include_role:
+#         name: provision
+#         tasks_from: sshd_allow_root
+#       vars:
+#         enable_root: true || false (boolean)
+###############################################
+## OR
+###############################################
+# - import_tasks: sshd_allow_root.yml
+#   vars:
+#     enable_root: true || false (boolean)
+###############################################

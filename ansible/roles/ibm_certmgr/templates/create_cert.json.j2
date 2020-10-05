@@ -1,0 +1,11 @@
+{
+  "name": "{{ certmgr_create_cert_name }}",
+  "description": "{{ certmgr_create_cert_description }}",
+  "domains": [ "{{ certmgr_create_cert_domain }}" ],
+  "domain_validation_method": "dns-01",
+  "issuer": "Let's Encrypt",
+  "dns_provider_instance_crn": "{{ certmgr_create_cert_cis_id }}",
+  "algorithm": "sha256WithRSAEncryption",
+  "key_algorithm": "rsaEncryption 2048 bit",
+  "auto_renew_enabled": true
+}

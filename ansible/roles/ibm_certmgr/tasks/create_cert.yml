@@ -1,0 +1,44 @@
+---
+
+# - name: Set facts for download certs role task (these will be available to other roles)
+#   set_fact:
+#     certmgr_certificate_name: "{{ certmgr_certificate_name }}"
+
+- name: Get IAM token
+  include_role:
+    name: iam
+    tasks_from: get_token
+
+- name: Get list of certificates
+  include_tasks: list_certs.yml
+
+# - name: test
+#   debug:
+#     msg: "{{ certmgr_certificate_list.json | json_query(query) }}"
+#   vars:
+#     #query: "certificates[*].name"
+#     query: "certificates[?name==`{{ certmgr_create_cert_name }}`].name | [0]"
+
+- name: Check if cert already exists in certmgr
+  set_fact:
+    cert_exists: "{{ certmgr_certificate_list.json | json_query(query) }}"
+  vars: # see examples for jmespath: https://jmespath.org/examples.html
+    query: "certificates[?name==`{{ certmgr_create_cert_name }}`].name | [0]"
+
+- name: Create certificate
+  uri:
+    url: "{{ certmgr_api_endpoint }}/api/v1/{{ certmgr_crn | urlencode | replace('/', '%2f') }}/certificates/order" # need replace("/", "%2f") to urlencode the forward slash '/' as urlencode doesn't do that
+    method: POST
+    return_content: yes
+    headers:
+      Authorization: "{{ iam_token }}"
+      Content-Type: "application/json"
+    body: "{{ lookup('template', '{{ role_path }}/templates/create_cert.json.j2') }}"
+    body_format: json
+  register: certmgr_create_certificate
+  when: not cert_exists
+
+- name: Certificate create result
+  debug:
+    msg: "{{ certmgr_create_certificate.json }}" # not a file
+  when: not cert_exists

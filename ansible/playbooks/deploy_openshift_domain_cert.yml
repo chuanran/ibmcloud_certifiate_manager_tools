@@ -1,0 +1,79 @@
+
+# Prerequisites:  put the corresponding ip(s) into an "ansible_inventory" file,can have a reference to "inventory/archie2-inventory" file
+# Usage: ansible-playbook playbooks/operations/deploy_openshift_domain_cert.yml -e "iam_api_key==<your_ibm_cloud_iam_api_key>" -i <path_of_ansible_inventory_file>
+
+- name: "Download openshift domain certificate"
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: "Download openshift domain certificate"
+      include_role:
+        name: ../../roles/ibm_certmgr
+        tasks_from: download_certs
+      vars:
+        # iam_api_key: "{{ iam_api_key }}"
+        ibm_certmgr_iam_api_key: "{{ iam_api_key }}"
+
+- name: "copy cert files to target osm vm"
+  hosts: openshift_ansible_control_node
+  become: yes
+  tasks:
+    - name: "copy cert files to target osm vm"
+      copy:
+        content: "{{ item.content }}"
+        dest: "{{ item.dest }}"
+        mode: 0644
+        backup: yes
+      with_items:
+        - { content: "{{ hostvars['ibm_certmgr_download_certs']['cert_results']['data']['content'] }}", dest: /root/certs/regtech.cloud.ibm.com.pem }
+        - { content: "{{ hostvars['ibm_certmgr_download_certs']['cert_results']['data']['intermediate'] }}", dest: /root/certs/regtech.cloud.ibm.com_intermediate.pem }
+        - { content: "{{ hostvars['ibm_certmgr_download_certs']['cert_results']['data']['priv_key'] }}", dest: /root/certs/regtech.cloud.ibm.com.key }
+        - { content: "{{ hostvars['ibm_certmgr_download_certs']['root_cert_results']['data']['content'] }}", dest: /root/certs/root.pem }
+
+- name: "validate certificate chain"
+  hosts: openshift_ansible_control_node
+  become: yes
+  tasks:
+    - name: "use openssl to validate if the certificate files form a complete chain"
+      command: openssl verify -trusted root.pem -untrusted regtech.cloud.ibm.com_intermediate.pem regtech.cloud.ibm.com.pem
+      args:
+        chdir: /root/certs
+
+- name: "enable root ssh access in AllowGroups in sshd config"
+  hosts: openshift_nodes
+  become: yes
+  tasks:
+    - name: "allow root ssh access temporarily"
+      include_role:
+        name: ../../roles/cis_security_hardening
+        tasks_from: sshd_allow_root
+      vars:
+        enable_root: true
+
+- name: "run ansible playbooks to deploy the new certificate"
+  hosts: openshift_ansible_control_node
+  become: yes
+  tasks:
+    - name: "Execute 'redeploy-certificates.yml' playbook."
+      shell: ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook playbooks/openshift-master/redeploy-certificates.yml -i /root/inventory.cfg 2>&1 | tee /root/$(date "+%Y.%m.%d-%H.%M.%S")-redeploy-certificates.yml.log
+      args:
+        chdir: /root/openshift-ansible
+    - name: "Execute 'redeploy-registry-certificates.yml' playbook."
+      shell: ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook playbooks/openshift-hosted/redeploy-registry-certificates.yml -i /root/inventory.cfg 2>&1 | tee /root/$(date "+%Y.%m.%d-%H.%M.%S")-redeploy-registry-certificates.yml.log
+      args:
+        chdir: /root/openshift-ansible
+    - name: "Execute 'redeploy-router-certificates.yml' playbook."
+      shell: ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook playbooks/openshift-hosted/redeploy-router-certificates.yml -i /root/inventory.cfg 2>&1 | tee /root/$(date "+%Y.%m.%d-%H.%M.%S")-redeploy-router-certificates.yml.log
+      args:
+        chdir: /root/openshift-ansible
+
+- name: "disable root ssh access in AllowGroups in sshd config"
+  hosts: openshift_nodes
+  become: yes
+  tasks:
+    - name: "disable root ssh access"
+      include_role:
+        name: ../../roles/cis_security_hardening
+        tasks_from: sshd_allow_root
+      vars:
+        enable_root: false
